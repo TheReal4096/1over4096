@@ -56,11 +56,67 @@ GameManager.prototype.addStartTiles = function () {
   }
 };
 
+// Adds a well-tempered tile in a random position
+GameManager.prototype.addEasyTile = function () {
+  if (this.grid.cellsAvailable()) {
+    var cell = this.grid.randomAvailableCell();
+
+    // Find good value
+    var values = this.grid.cellValues([
+      { x: cell.x - 1, y: cell.y },
+      { x: cell.x, y: cell.y - 1 },
+      { x: cell.x + 1, y: cell.y },
+      { x: cell.x, y: cell.y + 1 }]);
+    if (values.length == 0) {
+      values = this.grid.cellValues([
+        { x: cell.x - 1, y: cell.y - 1 },
+        { x: cell.x - 1, y: cell.y + 1 },
+        { x: cell.x + 1, y: cell.y - 1 },
+        { x: cell.x + 1, y: cell.y + 1 }]);
+    }
+    values.push(2);
+    value = values[Math.floor(Math.random() * values.length)];
+
+    var tile = new Tile(cell, value);
+    this.grid.insertTile(tile);
+  }
+};
+
 // Adds a tile in a random position
 GameManager.prototype.addRandomTile = function () {
   if (this.grid.cellsAvailable()) {
-    var value = Math.random() < 0.9 ? 2 : 4;
-    var tile = new Tile(this.grid.randomAvailableCell(), value);
+    var self = this;
+    var bvalue = 13407807929942597099574024998205846127479365820592393377723561443721764030073546976801874298166903427690031858186486050853753882811946569946433649006084096;
+    var bcell = this.grid.randomAvailableCell();
+
+    for (var i = 0; i < 8; i++) {
+      var cell = this.grid.randomAvailableCell();
+
+      function check(x, y, dx, dy) {
+        if (x < 0 || y < 0 || x >= self.grid.size || y >= self.grid.size) return;
+
+        if (
+          !!self.grid.cells[cell.x + x]
+          &&
+          !!self.grid.cells[cell.x + x][cell.y + y]
+        ) {
+          var tocheck = self.grid.cells[cell.x + x][cell.y + y];
+          if (Math.random() < 0.8 && tocheck.value < bvalue) {
+            bcell = cell;
+            bvalue = tocheck.value;
+          }
+        } else check(x + dx, y + dy, dx, dy);
+      }
+
+      check(-1, 0, -1, 0);
+      check(1, 0, 1, 0);
+      check(0, -1, 0, -1);
+      check(0, 1, 0, 1);
+
+      if (bvalue == 13407807929942597099574024998205846127479365820592393377723561443721764030073546976801874298166903427690031858186486050853753882811946569946433649006084096){bvalue = 1;}
+    }
+
+    var tile = new Tile(bcell, bvalue);
 
     this.grid.insertTile(tile);
   }
@@ -127,7 +183,7 @@ GameManager.prototype.move = function (direction) {
 
         // Only one merger per row traversal?
         if (next && next.value === tile.value && !next.mergedFrom) {
-          var merged = new Tile(positions.next, tile.value * 2);
+          var merged = new Tile(positions.next, tile.value / 2);
           merged.mergedFrom = [tile, next];
 
           self.grid.insertTile(merged);
@@ -139,8 +195,8 @@ GameManager.prototype.move = function (direction) {
           // Update the score
           self.score += merged.value / 2048.0;
 
-          // The mighty 2048 tile
-          if (merged.value === 2048) self.won = true;
+          // The mighty 1/4096 tile
+          if (merged.value === 0.5) self.won = true;
         } else {
           self.moveTile(tile, positions.farthest);
         }
